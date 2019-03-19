@@ -24,6 +24,8 @@ var levels = [
 
 var currentLevel = 0;
 
+var score = 0;
+
 var pos = [0, 0];
 
 var instructions = document.getElementById("instruction");
@@ -91,7 +93,9 @@ function drawMap(map) {
 }
 
 function setupLevel(level) {
-	
+
+	score += instructions.getElementsByTagName('li').length;
+		
 	resetGameBoard();
 	
 	while(instructions.firstChild) {
@@ -101,13 +105,22 @@ function setupLevel(level) {
 	won = false;
 	pos = [0, 0];
 	
+	setScore(currentLevel + 1, score);
+	
 	if(level >= levels.length) {
-		alert("There are no more levels!");
-		return;
+	var dimensions = 4 + currentLevel
+	currentMap = copyArray(generateNewMap(dimensions))
+	levels.push(copyArray(currentMap));
+	} else {
+	currentMap = copyArray(levels[level]);
 	}
 	
-	currentMap = copyArray(levels[level]);
 	drawMap(currentMap);
+}
+
+function setScore(level, score) {
+	document.getElementById("levelAmount").innerHTML = level;	
+	document.getElementById("scoreAmount").innerHTML = score;
 }
 
 function copyArray(arr) {
@@ -259,10 +272,38 @@ function generateNewMap(dimensions) {
 	
 	var map = generateFullMap(dimensions);
 	
-	var cutMap = cutPathTowardsExit(map, dimensions);
+	var noisyMap = addNoiseToMap(map, dimensions);
 	
-	return cutMap;
+	var cutMap = cutPathTowardsExit(noisyMap, dimensions);
+	
+	if(guaranteeExitExists(cutMap, dimensions) && !exitTooCloseToStart(cutMap, dimensions))
+		return cutMap
+	else return generateNewMap(dimensions)
 }
+
+/*
+
+	Add noise to map.
+
+*/
+function addNoiseToMap(map, dimensions) {
+	
+	for(row = 0; row < dimensions; row++) {
+		for(col = 0; col < dimensions; col++) {
+			
+			var random = Math.floor(Math.random() * (Math.floor(Math.random() * 121))) % 11
+
+			var shouldMakeHole = random < 2
+			if(shouldMakeHole) {
+			map[row][col] = 0;
+			}
+			
+		}
+	}
+	
+	return map;
+}
+
 
 /*
 
@@ -284,7 +325,7 @@ function generateEmptyMap(dimensions) {
 */
 function cutPathTowardsExit(map, dimensions) {
 	
-	var pathLen = Math.floor(Math.random() * (dimensions * 4)) + dimensions * 4;
+	var pathLen = Math.floor(Math.random() * (dimensions * 2)) + dimensions * 2;
 	
 	var cutPos = [0, 0];
 	var emptyMap = generateEmptyMap(dimensions);
@@ -297,17 +338,11 @@ function cutPathTowardsExit(map, dimensions) {
 			cutPos[0] += direction[0];
 			cutPos[1] += direction[1];
 			
-			if(i == pathLen - 1) {
-				console.log("Decide exit");
-				if(cutPos[0] == 0 && cutPos[1] == 0){
-					console.log("On start");
-					map = cutPathTowardsExit(generateFullMap(dimensions), dimensions);
-				} else {
-					map[cutPos[0]][cutPos[1]] = 2;
-				}
-			} else {
 			map[cutPos[0]][cutPos[1]] = 0;
-			}
+		}
+		
+		if(i == (pathLen - 1)) {
+			map[cutPos[0]][cutPos[1]] = 2;
 		}
 	}
 
@@ -316,26 +351,79 @@ function cutPathTowardsExit(map, dimensions) {
 	return map;
 }
 
+function exitTooCloseToStart(map, dimensions) {
+	var tooClose = false;
+	for(row = 0; row < dimensions / 3; row++) {
+		for(col = 0; col < dimensions / 3; col++) {
+				if(map[row][col] == 2) {
+					tooClose = true;
+					break;
+				}
+		}
+	}
+	
+	return tooClose;
+}
+
+function guaranteeExitExists(map, dimensions) {
+	var hasExit = false;
+	for(row = 0; row < dimensions; row++) {
+		for(col = 0; col < dimensions; col++) {
+				if(map[row][col] == 2) {
+					hasExit = true;
+					break;
+				}
+		}
+	}
+	
+	return hasExit;
+}
+
 /*
 
 	Generates a random direction;
 
 */
+
+var previouslyRandom = 1;
+
 function chooseRandomDirection() {
 	switch(Math.floor(Math.random() * 4)) {
 		case 0: 
-			return "U";
+			if(previouslyRandom == 0 || previouslyRandom == 2){
+			return "U"
+			}
+			else{
+			previouslyRandom = 0
+			return chooseRandomDirection()
+			}
 		case 1:
-			return "L";
+			if(previouslyRandom == 1 || previouslyRandom == 3){
+			return "L"
+			}
+			else{
+			previouslyRandom = 1
+			return chooseRandomDirection()
+			}
 		case 2:
-			return "D";
+			if(previouslyRandom == 0 || previouslyRandom == 2){
+			return "D"
+			}
+			else{
+			previouslyRandom = 2
+			return chooseRandomDirection()
+			}
 		case 3:
-			return "R";
+			if(previouslyRandom == 1 || previouslyRandom == 3){
+			return "R"
+			}
+			else{
+			previouslyRandom = 3
+			return chooseRandomDirection()
+			}
 	}
 }
 
 //Draw first level
-
-levels[0] = generateNewMap(8);
 
 setupLevel(0);
